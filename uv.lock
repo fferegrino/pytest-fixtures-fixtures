@@ -354,9 +354,7 @@ wheels = [
 name = "pytest-fixtures-fixtures"
 version = "0.1.0"
 source = { editable = "." }
-
-[package.optional-dependencies]
-pytest = [
+dependencies = [
     { name = "pytest" },
 ]
 
@@ -369,8 +367,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pytest", marker = "extra == 'pytest'", specifier = ">=8.4.1" }]
-provides-extras = ["pytest"]
+requires-dist = [{ name = "pytest", specifier = ">=8.4.1" }]
 
 [package.metadata.requires-dev]
 dev = [
