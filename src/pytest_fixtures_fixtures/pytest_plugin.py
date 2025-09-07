@@ -19,7 +19,7 @@ def fixtures_path(pytestconfig):
 
     This fixture provides a Path object pointing to the standard location
     for test fixtures: `tests/fixtures/` relative to the project root.
-    
+
     Override this fixture if you want to use a different path for your fixtures.
 
 
@@ -35,7 +35,7 @@ def fixtures_path(pytestconfig):
         ...     assert fixtures_path.name == "fixtures"
 
     """
-    return pytestconfig.rootdir / "tests" / "fixtures"
+    return Path(pytestconfig.rootdir) / "tests" / "fixtures"
 
 
 @pytest.fixture
@@ -171,10 +171,9 @@ def read_json_fixture(read_fixture):
 
     def _read_json_fixture(
         *fixture_name: str | os.PathLike[str],
-        must_exist: bool = True,
         encoding: str = "utf-8",
     ) -> dict:
-        return read_fixture(*fixture_name, must_exist=must_exist, encoding=encoding, deserialize=json.loads)
+        return read_fixture(*fixture_name, encoding=encoding, deserialize=json.loads)
 
     return _read_json_fixture
 
@@ -220,12 +219,11 @@ def read_jsonl_fixture(read_fixture):
 
     def _read_jsonl_fixture(
         *fixture_name: str | os.PathLike[str],
-        must_exist: bool = True,
         encoding: str = "utf-8",
     ) -> list[dict]:
         def deserialize(x: str) -> list[dict]:
             return [json.loads(line) for line in x.splitlines()]
 
-        return read_fixture(*fixture_name, must_exist=must_exist, encoding=encoding, deserialize=deserialize)
+        return read_fixture(*fixture_name, encoding=encoding, deserialize=deserialize)
 
     return _read_jsonl_fixture
