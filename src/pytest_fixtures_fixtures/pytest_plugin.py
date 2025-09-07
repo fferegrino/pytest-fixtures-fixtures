@@ -126,8 +126,13 @@ def read_fixture(path_for_fixture):
         deserialize: Callable = lambda x: x,
     ) -> str:
         path = path_for_fixture(*fixture_name)
-        with open(path, mode, encoding=encoding) as f:
-            return deserialize(f.read())
+        # Don't pass encoding for binary modes
+        if "b" in mode:
+            with open(path, mode) as f:
+                return deserialize(f.read())
+        else:
+            with open(path, mode, encoding=encoding) as f:
+                return deserialize(f.read())
 
     return _read_fixture
 
