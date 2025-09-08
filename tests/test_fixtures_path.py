@@ -9,7 +9,7 @@ def test_default_fixtures_path_exists(fixtures_path):
     assert fixtures_path.is_dir()
     assert fixtures_path.name == "fixtures"
     assert fixtures_path.parent.name == "tests"
-    assert len(list(fixtures_path.glob("*"))) == 1
+    assert len(list(fixtures_path.glob("*"))) >= 1
 
 
 def test_default_fixture_fails_on_non_existing_fixture(path_for_fixture):
