@@ -86,7 +86,7 @@ def test_read_jsonl_fixture(read_jsonl_fixture, temp_dir):
         for item in jsonl:
             f.write(json.dumps(item) + "\n")
 
-    actual = read_jsonl_fixture("test.jsonl")
+    actual = list(read_jsonl_fixture("test.jsonl"))
     assert actual == jsonl
 
 
@@ -98,7 +98,7 @@ def test_read_jsonl_fixture_encoding(read_jsonl_fixture, temp_dir):
         for item in data:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
-    result = read_jsonl_fixture("unicode.jsonl", encoding="utf-8")
+    result = list(read_jsonl_fixture("unicode.jsonl", encoding="utf-8"))
     assert result == data
 
 
@@ -111,7 +111,7 @@ def test_read_jsonl_fixture_invalid_json_line(read_jsonl_fixture, temp_dir):
         f.write('{"another": "valid"}\n')
 
     with pytest.raises(json.JSONDecodeError):
-        read_jsonl_fixture("invalid.jsonl")
+        list(read_jsonl_fixture("invalid.jsonl"))
 
 
 def test_read_jsonl_fixture_empty_file(read_jsonl_fixture, temp_dir):
@@ -119,7 +119,7 @@ def test_read_jsonl_fixture_empty_file(read_jsonl_fixture, temp_dir):
     test_file = temp_dir / "empty.jsonl"
     test_file.write_text("")
 
-    result = read_jsonl_fixture("empty.jsonl")
+    result = list(read_jsonl_fixture("empty.jsonl"))
     assert result == []
 
 
@@ -130,7 +130,7 @@ def test_read_jsonl_fixture_single_line(read_jsonl_fixture, temp_dir):
     with open(test_file, "w") as f:
         f.write(json.dumps(data[0]) + "\n")
 
-    result = read_jsonl_fixture("single.jsonl")
+    result = list(read_jsonl_fixture("single.jsonl"))
     assert result == data
 
 
@@ -146,7 +146,7 @@ def test_read_jsonl_fixture_mixed_types(read_jsonl_fixture, temp_dir):
         for item in data:
             f.write(json.dumps(item) + "\n")
 
-    result = read_jsonl_fixture("mixed.jsonl")
+    result = list(read_jsonl_fixture("mixed.jsonl"))
     assert result == data
     assert len(result) == 3
     assert result[0]["type"] == "user"
@@ -157,7 +157,89 @@ def test_read_jsonl_fixture_mixed_types(read_jsonl_fixture, temp_dir):
 def test_read_jsonl_fixture_nonexistent_file(read_jsonl_fixture):
     """Test read_jsonl_fixture with nonexistent file raises error."""
     with pytest.raises(FileNotFoundError):
-        read_jsonl_fixture("nonexistent.jsonl")
+        list(read_jsonl_fixture("nonexistent.jsonl"))
+
+
+def test_read_csv_fixture(read_csv_fixture, temp_dir):
+    """Test read_csv_fixture with valid CSV file."""
+    temp_dir_file = temp_dir / "test.csv"
+    expected = [["name", "age"], ["Alice", "30"], ["Bob", "25"]]
+    csv_data = ["name,age", "Alice,30", "Bob,25"]
+    temp_dir_file.write_text("\n".join(csv_data))
+
+    actual = list(read_csv_fixture("test.csv"))
+    assert actual == expected
+
+
+def test_read_csv_dict_fixture(read_csv_dict_fixture, temp_dir):
+    """Test read_csv_dict_fixture with valid CSV file."""
+    temp_dir_file = temp_dir / "test.csv"
+    csv_data = ["name,age,city", "Alice,30,New York", "Bob,25,London"]
+    temp_dir_file.write_text("\n".join(csv_data))
+
+    actual = list(read_csv_dict_fixture("test.csv"))
+    expected = [{"name": "Alice", "age": "30", "city": "New York"}, {"name": "Bob", "age": "25", "city": "London"}]
+    assert actual == expected
+
+
+def test_read_csv_dict_fixture_encoding(read_csv_dict_fixture, temp_dir):
+    """Test read_csv_dict_fixture with different encoding."""
+    data = ["name,location", "José,São Paulo", "François,Café de Paris"]
+    test_file = temp_dir / "unicode.csv"
+    test_file.write_text("\n".join(data), encoding="utf-8")
+
+    result = list(read_csv_dict_fixture("unicode.csv", encoding="utf-8"))
+    expected = [{"name": "José", "location": "São Paulo"}, {"name": "François", "location": "Café de Paris"}]
+    assert result == expected
+
+
+def test_read_csv_dict_fixture_empty_file(read_csv_dict_fixture, temp_dir):
+    """Test read_csv_dict_fixture with empty file returns empty list."""
+    test_file = temp_dir / "empty.csv"
+    test_file.write_text("")
+
+    result = list(read_csv_dict_fixture("empty.csv"))
+    assert result == []
+
+
+def test_read_csv_dict_fixture_headers_only(read_csv_dict_fixture, temp_dir):
+    """Test read_csv_dict_fixture with headers only."""
+    test_file = temp_dir / "headers_only.csv"
+    test_file.write_text("name,age,email")
+
+    result = list(read_csv_dict_fixture("headers_only.csv"))
+    assert result == []
+
+
+def test_read_csv_dict_fixture_single_row(read_csv_dict_fixture, temp_dir):
+    """Test read_csv_dict_fixture with single data row."""
+    data = ["id,name,active", "1,Alice,true"]
+    test_file = temp_dir / "single.csv"
+    test_file.write_text("\n".join(data))
+
+    result = list(read_csv_dict_fixture("single.csv"))
+    expected = [{"id": "1", "name": "Alice", "active": "true"}]
+    assert result == expected
+
+
+def test_read_csv_dict_fixture_quoted_fields(read_csv_dict_fixture, temp_dir):
+    """Test read_csv_dict_fixture with quoted CSV fields."""
+    data = ["name,description", '"Alice Smith","A person who likes, commas"', '"Bob Jones","Simple description"']
+    test_file = temp_dir / "quoted.csv"
+    test_file.write_text("\n".join(data))
+
+    result = list(read_csv_dict_fixture("quoted.csv"))
+    expected = [
+        {"name": "Alice Smith", "description": "A person who likes, commas"},
+        {"name": "Bob Jones", "description": "Simple description"},
+    ]
+    assert result == expected
+
+
+def test_read_csv_dict_fixture_nonexistent_file(read_csv_dict_fixture):
+    """Test read_csv_dict_fixture with nonexistent file raises error."""
+    with pytest.raises(FileNotFoundError):
+        list(read_csv_dict_fixture("nonexistent.csv"))
 
 
 def test_read_fixture_with_custom_yaml_deserialize(read_fixture, temp_dir):

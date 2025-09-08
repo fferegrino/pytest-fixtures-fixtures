@@ -1,8 +1,9 @@
 """Module containing pytest fixtures."""
 
+import csv
 import json
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from pathlib import Path
 
 import pytest
@@ -201,37 +202,37 @@ def read_json_fixture(read_fixture):
 
 
 @pytest.fixture
-def read_jsonl_fixture(read_fixture):
+def read_jsonl_fixture(path_for_fixture):
     """
     Read and parse a JSONL (JSON Lines) fixture file.
 
     This fixture returns a function that reads JSONL fixture files, where
-    each line contains a separate JSON object. The result is a list of
-    dictionaries, one for each line in the file.
+    each line contains a separate JSON object. The result is a generator of
+    dictionaries, one for each line in the file, allowing for memory-efficient
+    processing of large files.
 
     Args:
-        read_fixture: The base fixture reading function.
+        path_for_fixture: Function to get paths to fixture files.
 
     Returns:
         Callable: A function that reads and parses JSONL fixture files.
 
     The returned function accepts:
         *fixture_name: Components of the JSONL fixture file path.
-        must_exist: If True, raises FileNotFoundError if the fixture doesn't exist.
         encoding: Text encoding to use when reading the file (default: "utf-8").
 
     Returns:
-        list[dict]: A list of dictionaries, one for each JSON object in the file.
+        Generator[dict, None, None]: A generator of dictionaries, one for each JSON object in the file.
 
     Raises:
-        FileNotFoundError: If must_exist=True and the fixture file doesn't exist.
+        FileNotFoundError: If the fixture file doesn't exist.
         json.JSONDecodeError: If any line contains invalid JSON.
 
     Example:
         >>> def test_log_entries(read_jsonl_fixture):
         ...     logs = read_jsonl_fixture("logs", "access.jsonl")
-        ...     assert len(logs) > 0
-        ...     assert "timestamp" in logs[0]
+        ...     first_log = next(logs)
+        ...     assert "timestamp" in first_log
         ...
         >>> def test_user_records(read_jsonl_fixture):
         ...     users = read_jsonl_fixture("data", "users.jsonl")
@@ -242,10 +243,117 @@ def read_jsonl_fixture(read_fixture):
     def _read_jsonl_fixture(
         *fixture_name: str | os.PathLike[str],
         encoding: str = "utf-8",
-    ) -> list[dict]:
-        def deserialize(x: str) -> list[dict]:
-            return [json.loads(line) for line in x.splitlines()]
-
-        return read_fixture(*fixture_name, encoding=encoding, deserialize=deserialize)
+    ) -> Generator[dict, None, None]:
+        path = path_for_fixture(*fixture_name)
+        with open(path, encoding=encoding) as f:
+            for line in f:
+                clean_line = line.strip()
+                if clean_line:  # Skip empty lines
+                    yield json.loads(clean_line)
 
     return _read_jsonl_fixture
+
+
+@pytest.fixture
+def read_csv_fixture(path_for_fixture):
+    """
+    Read and parse a CSV fixture file.
+
+    This fixture returns a function that reads CSV fixture files using
+    Python's built-in csv.reader. The result is a generator of lists,
+    one for each row in the file, allowing for memory-efficient
+    processing of large CSV files. Each row is returned as a list of strings.
+
+    Args:
+        path_for_fixture: Function to get paths to fixture files.
+
+    Returns:
+        Callable: A function that reads and parses CSV fixture files.
+
+    The returned function accepts:
+        *fixture_name: Components of the CSV fixture file path.
+        encoding: Text encoding to use when reading the file (default: "utf-8").
+
+    Returns:
+        Generator[list[str], None, None]: A generator of lists, one for each row in the CSV file.
+
+    Raises:
+        FileNotFoundError: If the fixture file doesn't exist.
+        csv.Error: If the file contains malformed CSV data.
+
+    Example:
+        >>> def test_user_data(read_csv_fixture):
+        ...     rows = read_csv_fixture("data", "users.csv")
+        ...     header = next(rows)  # First row is typically headers
+        ...     assert header == ["name", "age", "email"]
+        ...
+        >>> def test_sales_data(read_csv_fixture):
+        ...     sales = read_csv_fixture("reports", "sales.csv")
+        ...     total_rows = sum(1 for row in sales)
+        ...     assert total_rows > 0
+
+    """
+
+    def _read_csv_fixture(
+        *fixture_name: str | os.PathLike[str],
+        encoding: str = "utf-8",
+    ) -> Generator[list[str], None, None]:
+        path = path_for_fixture(*fixture_name)
+        with open(path, encoding=encoding) as f:
+            yield from csv.reader(f)
+
+    return _read_csv_fixture
+
+
+@pytest.fixture
+def read_csv_dict_fixture(path_for_fixture):
+    """
+    Read and parse a CSV fixture file as dictionaries.
+
+    This fixture returns a function that reads CSV fixture files using
+    Python's built-in csv.DictReader. The result is a generator of dictionaries,
+    one for each row in the file, allowing for memory-efficient processing
+    of large CSV files. Each row is returned as a dictionary with column
+    headers as keys and row values as string values.
+
+    Args:
+        path_for_fixture: Function to get paths to fixture files.
+
+    Returns:
+        Callable: A function that reads and parses CSV fixture files as dictionaries.
+
+    The returned function accepts:
+        *fixture_name: Components of the CSV fixture file path.
+        encoding: Text encoding to use when reading the file (default: "utf-8").
+
+    Returns:
+        Generator[dict[str, str], None, None]: A generator of dictionaries, one for each row in the CSV file.
+
+    Raises:
+        FileNotFoundError: If the fixture file doesn't exist.
+        csv.Error: If the file contains malformed CSV data.
+
+    Example:
+        >>> def test_user_data(read_csv_dict_fixture):
+        ...     users = read_csv_dict_fixture("data", "users.csv")
+        ...     first_user = next(users)
+        ...     assert first_user["name"] == "Alice"
+        ...     assert first_user["age"] == "30"
+        ...
+        >>> def test_sales_records(read_csv_dict_fixture):
+        ...     sales = read_csv_dict_fixture("reports", "sales.csv")
+        ...     for record in sales:
+        ...         assert "product" in record
+        ...         assert "revenue" in record
+
+    """
+
+    def _read_csv_dict_fixture(
+        *fixture_name: str | os.PathLike[str],
+        encoding: str = "utf-8",
+    ) -> Generator[dict[str, str], None, None]:
+        path = path_for_fixture(*fixture_name)
+        with open(path, encoding=encoding) as f:
+            yield from csv.DictReader(f)
+
+    return _read_csv_dict_fixture
