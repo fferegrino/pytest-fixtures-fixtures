@@ -1,9 +1,12 @@
-- a: 1
+- id: yaml_case_1
+  a: 1
   b: 2
   c: 3
-- a: 3
+- id: yaml_case_2
+  a: 3
   b: 4
   c: 7
-- a: 5
+- id: yaml_case_3
+  a: 5
   b: 6
   c: 11

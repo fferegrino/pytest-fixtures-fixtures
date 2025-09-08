@@ -4,7 +4,7 @@ import csv
 import json
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, TypeAlias, TypeVar
 
 import pytest
 
@@ -14,6 +14,7 @@ except ImportError:
     yaml = None
 
 F = TypeVar("F", bound=Callable[..., Any])
+FixtureData: TypeAlias = tuple[str, list[tuple], list[str] | None]
 
 
 def parametrize_from_fixture(  # noqa: C901
@@ -22,6 +23,7 @@ def parametrize_from_fixture(  # noqa: C901
     file_format: str = "auto",
     encoding: str = "utf-8",
     fixtures_dir: str | Path | None = None,
+    id_field: str | None = "id",
     **kwargs: Any,
 ) -> Callable[[F], F]:
     """
@@ -36,6 +38,7 @@ def parametrize_from_fixture(  # noqa: C901
         file_format: File format ("csv", "json", "jsonl", "yaml", or "auto" to detect from extension).
         encoding: Text encoding to use when reading the file (default: "utf-8").
         fixtures_dir: Override the fixtures directory path. If None, defaults to "tests/fixtures/".
+        id_field: The field name to use for test IDs. If None, no test IDs will be used. Defaults to "id".
         **kwargs: Additional arguments passed to pytest.mark.parametrize.
 
     Returns:
@@ -46,9 +49,38 @@ def parametrize_from_fixture(  # noqa: C901
         FileNotFoundError: If the fixture file doesn't exist.
         ImportError: If a required library is not installed.
 
+    Note:
+        Test IDs can be specified using a special column (CSV) or key (JSON/JSONL/YAML).
+        When present, these IDs are automatically used for test identification. User-provided
+        'ids' parameter takes precedence over file-based IDs.
+
+    Example:
+        CSV file with custom IDs:
+        ```csv
+        id,value,expected
+        test_case_1,a,b
+        test_case_2,x,y
+        ```
+
+        JSON file with custom IDs:
+        ```json
+        [
+            {"id": "test_case_1", "value": "a", "expected": "b"},
+            {"id": "test_case_2", "value": "x", "expected": "y"}
+        ]
+        ```
+
+        Usage:
+        ```python
+        @parametrize_from_fixture("data.csv")
+        def test_something(value, expected):
+            # Runs with test IDs: test_case_1, test_case_2
+            assert value != expected
+        ```
+
     """
 
-    def decorator(og_test_func: F) -> F:  # noqa: C901
+    def decorator(og_test_func: F) -> F:  # noqa: C901, PLR0912
         fixtures_path = _get_fixtures_path(fixtures_dir)
 
         # Detect file format if auto
@@ -73,18 +105,23 @@ def parametrize_from_fixture(  # noqa: C901
 
         # Parse based on format
         if detected_format == "csv":
-            param_names, param_values = _read_csv_for_parametrize(fixture_path, encoding)
+            param_names, param_values, test_ids = _read_csv_for_parametrize(fixture_path, encoding, id_field)
         elif detected_format == "json":
-            param_names, param_values = _read_json_for_parametrize(fixture_path, encoding)
+            param_names, param_values, test_ids = _read_json_for_parametrize(fixture_path, encoding, id_field)
         elif detected_format == "jsonl":
-            param_names, param_values = _read_jsonl_for_parametrize(fixture_path, encoding)
+            param_names, param_values, test_ids = _read_jsonl_for_parametrize(fixture_path, encoding, id_field)
         elif detected_format == "yaml":
-            param_names, param_values = _read_yaml_for_parametrize(fixture_path, encoding)
+            param_names, param_values, test_ids = _read_yaml_for_parametrize(fixture_path, encoding, id_field)
         else:
             raise ValueError(f"Unsupported file format: {detected_format}")
 
         # Apply parametrize with the data
         parametrize_kwargs = {"argnames": param_names, "argvalues": param_values, **kwargs}
+
+        # Use extracted test IDs if available and not overridden by user
+        if test_ids is not None and "ids" not in kwargs:
+            parametrize_kwargs["ids"] = test_ids
+
         return pytest.mark.parametrize(**parametrize_kwargs)(og_test_func)
 
     return decorator
@@ -97,8 +134,8 @@ def _get_fixtures_path(fixtures_dir: str | Path | None = None) -> Path:
     return Path.cwd() / "tests" / "fixtures"
 
 
-def _read_csv_for_parametrize(file_path: Path, encoding: str) -> tuple[str, list[tuple]]:
-    """Read CSV file and return parameter names and values for parametrize."""
+def _read_csv_for_parametrize(file_path: Path, encoding: str, id_field: str | None = "id") -> FixtureData:
+    """Read CSV file and return parameter names, values, and optional test IDs for parametrize."""
     with open(file_path, encoding=encoding) as f:
         reader = csv.DictReader(f)
         fieldnames = reader.fieldnames
@@ -109,15 +146,22 @@ def _read_csv_for_parametrize(file_path: Path, encoding: str) -> tuple[str, list
         if not rows:
             raise ValueError(f"CSV file {file_path} has no data rows")
 
-        # Convert dict rows to tuples in field order
+        # Check if there's an 'id' column for test IDs
+        test_ids = None
+        if id_field in fieldnames:
+            test_ids = [row[id_field] for row in rows]
+            # Remove 'id' from fieldnames and data
+            fieldnames = [field for field in fieldnames if field != id_field]
+
+        # Convert dict rows to tuples in field order (excluding 'id')
         param_values = [tuple(row[field] for field in fieldnames) for row in rows]
         param_names = ",".join(fieldnames)
 
-        return param_names, param_values
+        return param_names, param_values, test_ids
 
 
-def _read_json_for_parametrize(file_path: Path, encoding: str) -> tuple[str, list[tuple]]:
-    """Read JSON file and return parameter names and values for parametrize."""
+def _read_json_for_parametrize(file_path: Path, encoding: str, id_field: str | None = "id") -> FixtureData:
+    """Read JSON file and return parameter names, values, and optional test IDs for parametrize."""
     with open(file_path, encoding=encoding) as f:
         data = json.load(f)
 
@@ -133,22 +177,33 @@ def _read_json_for_parametrize(file_path: Path, encoding: str) -> tuple[str, lis
         raise ValueError(f"JSON file {file_path} must contain a list of dictionaries")
 
     fieldnames = list(first_item.keys())
+
+    # Check if there's an 'id' key for test IDs
+    test_ids = None
+    if id_field in fieldnames:
+        test_ids = [str(item[id_field]) for item in data]
+        # Remove 'id' from fieldnames
+        fieldnames = [field for field in fieldnames if field != id_field]
+
     param_names = ",".join(fieldnames)
 
-    # Convert each dict to a tuple in field order
+    # Convert each dict to a tuple in field order (excluding 'id')
     param_values = []
     for item in data:
         if not isinstance(item, dict):
             raise ValueError(f"All items in JSON file {file_path} must be dictionaries")
-        if set(item.keys()) != set(fieldnames):
+        expected_keys = set(fieldnames)
+        if id_field in item:
+            expected_keys.add(id_field)
+        if set(item.keys()) != expected_keys:
             raise ValueError(f"All items in JSON file {file_path} must have the same keys")
         param_values.append(tuple(item[field] for field in fieldnames))
 
-    return param_names, param_values
+    return param_names, param_values, test_ids
 
 
-def _read_jsonl_for_parametrize(file_path: Path, encoding: str) -> tuple[str, list[tuple]]:
-    """Read JSONL file and return parameter names and values for parametrize."""
+def _read_jsonl_for_parametrize(file_path: Path, encoding: str, id_field: str | None = "id") -> FixtureData:
+    """Read JSONL file and return parameter names, values, and optional test IDs for parametrize."""
     data = []
     with open(file_path, encoding=encoding) as f:
         for line in f:
@@ -165,22 +220,33 @@ def _read_jsonl_for_parametrize(file_path: Path, encoding: str) -> tuple[str, li
         raise ValueError(f"JSONL file {file_path} must contain dictionaries")
 
     fieldnames = list(first_item.keys())
+
+    # Check if there's an 'id' key for test IDs
+    test_ids = None
+    if id_field in fieldnames:
+        test_ids = [str(item[id_field]) for item in data]
+        # Remove 'id' from fieldnames
+        fieldnames = [field for field in fieldnames if field != id_field]
+
     param_names = ",".join(fieldnames)
 
-    # Convert each dict to a tuple in field order
+    # Convert each dict to a tuple in field order (excluding 'id')
     param_values = []
     for item in data:
         if not isinstance(item, dict):
             raise ValueError(f"All items in JSONL file {file_path} must be dictionaries")
-        if set(item.keys()) != set(fieldnames):
+        expected_keys = set(fieldnames)
+        if id_field in item:
+            expected_keys.add(id_field)
+        if set(item.keys()) != expected_keys:
             raise ValueError(f"All items in JSONL file {file_path} must have the same keys")
         param_values.append(tuple(item[field] for field in fieldnames))
 
-    return param_names, param_values
+    return param_names, param_values, test_ids
 
 
-def _read_yaml_for_parametrize(file_path: Path, encoding: str) -> tuple[str, list[tuple]]:
-    """Read YAML file and return parameter names and values for parametrize."""
+def _read_yaml_for_parametrize(file_path: Path, encoding: str, id_field: str | None = "id") -> FixtureData:
+    """Read YAML file and return parameter names, values, and optional test IDs for parametrize."""
     if yaml is None:
         raise ImportError("PyYAML is required for YAML fixtures. Install it: https://pypi.org/project/PyYAML/")
 
@@ -199,15 +265,26 @@ def _read_yaml_for_parametrize(file_path: Path, encoding: str) -> tuple[str, lis
         raise ValueError(f"YAML file {file_path} must contain a list of dictionaries")
 
     fieldnames = list(first_item.keys())
+
+    # Check if there's an 'id' key for test IDs
+    test_ids = None
+    if id_field in fieldnames:
+        test_ids = [str(item[id_field]) for item in data]
+        # Remove 'id' from fieldnames
+        fieldnames = [field for field in fieldnames if field != id_field]
+
     param_names = ",".join(fieldnames)
 
-    # Convert each dict to a tuple in field order
+    # Convert each dict to a tuple in field order (excluding 'id')
     param_values = []
     for item in data:
         if not isinstance(item, dict):
             raise ValueError(f"All items in YAML file {file_path} must be dictionaries")
-        if set(item.keys()) != set(fieldnames):
+        expected_keys = set(fieldnames)
+        if id_field in item:
+            expected_keys.add(id_field)
+        if set(item.keys()) != expected_keys:
             raise ValueError(f"All items in YAML file {file_path} must have the same keys")
         param_values.append(tuple(item[field] for field in fieldnames))
 
-    return param_names, param_values
+    return param_names, param_values, test_ids
