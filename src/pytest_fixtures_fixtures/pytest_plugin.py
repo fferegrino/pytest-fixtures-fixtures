@@ -8,23 +8,37 @@ from pathlib import Path
 import pytest
 
 
-def pytest_configure(config):
+def pytest_configure(config: pytest.Config):
     """Configure pytest plugin."""
 
 
+def pytest_addoption(parser: pytest.Parser):
+    """Add pytest options."""
+    parser.addoption(
+        "--fixtures-fixtures-path",
+        action="store",
+        default=None,
+        help="Path to the fixtures directory. Overrides the default 'tests/fixtures/' path.",
+    )
+
+
 @pytest.fixture
-def fixtures_path(pytestconfig):
+def fixtures_path(pytestconfig, request):
     """
     Get the path to the test fixtures directory.
 
-    This fixture provides a Path object pointing to the standard location
-    for test fixtures: `tests/fixtures/` relative to the project root.
+    This fixture provides a Path object pointing to the test fixtures directory.
+    By default, it uses `tests/fixtures/` relative to the project root.
 
-    Override this fixture if you want to use a different path for your fixtures.
-
+    The fixture directory can be customized in several ways:
+    1. Command line: pytest --fixtures-fixtures-path=path/to/fixtures
+    2. pytest.ini: addopts = --fixtures-fixtures-path=path/to/fixtures
+    3. pyproject.toml: addopts = "--fixtures-fixtures-path=path/to/fixtures"
+    4. Override this fixture in your tests for programmatic control
 
     Args:
         pytestconfig: The pytest configuration object.
+        request: The pytest request object.
 
     Returns:
         Path: A pathlib.Path object pointing to the fixtures directory.
@@ -35,6 +49,9 @@ def fixtures_path(pytestconfig):
         ...     assert fixtures_path.name == "fixtures"
 
     """
+    fixtures_path = pytestconfig.getoption("fixtures_fixtures_path")
+    if fixtures_path:
+        return Path(fixtures_path).resolve()
     return Path(pytestconfig.rootdir) / "tests" / "fixtures"
 
 

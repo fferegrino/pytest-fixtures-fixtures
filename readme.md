@@ -122,9 +122,46 @@ def test_read_mixed_jsonl(read_jsonl_fixture):
     assert any(event.get("type") == "system" for event in events)
 ```
 
+## Configuration
+
 ### Custom Fixture Directory
 
-Override the default fixtures path for your tests:
+You can override the default fixtures directory (`tests/fixtures/`) in several ways:
+
+#### Using Command Line Option
+
+Use the `--fixtures-fixtures-path` option to specify a custom fixtures directory:
+
+```bash
+# Run tests with a custom fixtures directory
+pytest --fixtures-fixtures-path=my_custom_fixtures
+
+# Use relative path from project root
+pytest --fixtures-fixtures-path=tests/my_fixtures
+
+# Use absolute path
+pytest --fixtures-fixtures-path=/path/to/my/fixtures
+```
+
+#### Using Configuration Files
+
+**In `pytest.ini`:**
+
+```ini
+[pytest]
+addopts = --fixtures-fixtures-path=tests/custom_fixtures
+```
+
+**In `pyproject.toml`:**
+
+```toml
+[tool.pytest.ini_options]
+addopts = "--fixtures-fixtures-path=tests/custom_fixtures"
+```
+
+#### Programmatically Override the Fixture
+
+Override the default fixtures path for specific tests by redefining the fixture:
 
 ```python
 @pytest.fixture
@@ -144,6 +181,43 @@ def test_with_custom_path(read_fixture, fixtures_path):
     # Read it using the fixture
     content = read_fixture("test.txt")
     assert content == "custom content"
+```
+
+#### Practical Examples
+
+**Example 1: Different fixtures for different environments**
+
+```bash
+# Development fixtures
+pytest --fixtures-fixtures-path=tests/fixtures/dev
+
+# Production-like fixtures  
+pytest --fixtures-fixtures-path=tests/fixtures/prod
+
+# Integration test fixtures
+pytest --fixtures-fixtures-path=tests/fixtures/integration
+```
+
+**Example 2: Shared fixtures across projects**
+
+```bash
+# Use fixtures from a shared location
+pytest --fixtures-fixtures-path=/shared/test-fixtures/common
+```
+
+**Example 3: Configuration per test suite**
+
+```toml
+# pyproject.toml
+[tool.pytest.ini_options]
+# Default fixtures for unit tests
+addopts = "--fixtures-fixtures-path=tests/fixtures/unit"
+```
+
+Then override for integration tests:
+
+```bash
+pytest tests/integration/ --fixtures-fixtures-path=tests/fixtures/integration
 ```
 
 ### Error Handling

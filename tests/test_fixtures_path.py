@@ -1,3 +1,5 @@
+from textwrap import dedent
+
 import pytest
 
 
@@ -81,3 +83,56 @@ class TestOverrideFixturesPath:
         path = path_for_fixture(Path("test.txt"))
         assert path == test_file
         assert path.exists()
+
+
+class TestFixturesPathOverride:
+    @pytest.fixture
+    def under_test(self):
+        return dedent("""
+    def test_fixtures_path_override(fixtures_path):
+        assert fixtures_path.name == "custom"
+        assert not fixtures_path.exists()
+    """)
+
+    @pytest.mark.parametrize(
+        "extension, config_file",
+        [
+            (
+                ".ini",
+                {
+                    "pytest": dedent("""
+                        [pytest]
+                        addopts= --fixtures-fixtures-path=tests/fixtures/custom
+                        """)
+                },
+            ),
+            (
+                ".toml",
+                {
+                    "pyproject": dedent("""
+                        [tool.pytest.ini_options]
+                        addopts = "--fixtures-fixtures-path=tests/fixtures/custom"
+                        """)
+                },
+            ),
+            (
+                ".cfg",
+                {
+                    "setup": dedent("""
+                        [tool:pytest]
+                        addopts = --fixtures-fixtures-path=tests/fixtures/custom
+                        """)
+                },
+            ),
+        ],
+    )
+    def test_fixtures_path_override_settings(self, pytester: pytest.Pytester, under_test, extension, config_file):
+        pytester.makefile(extension, **config_file)
+        pytester.makepyfile(under_test)
+        result = pytester.runpytest()
+        result.assert_outcomes(passed=1)
+
+    def test_override_with_command_line_option(self, pytester: pytest.Pytester, under_test):
+        pytester.makepyfile(under_test)
+        result = pytester.runpytest("--fixtures-fixtures-path=tests/fixtures/custom")
+        result.assert_outcomes(passed=1)
