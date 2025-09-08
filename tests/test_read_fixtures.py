@@ -242,6 +242,117 @@ def test_read_csv_dict_fixture_nonexistent_file(read_csv_dict_fixture):
         list(read_csv_dict_fixture("nonexistent.csv"))
 
 
+def test_read_yaml_fixture(read_yaml_fixture, temp_dir):
+    """Test read_yaml_fixture with valid YAML file."""
+    temp_dir_file = temp_dir / "test.yaml"
+    data = {"name": "Alice", "age": 30, "active": True, "tags": ["user", "admin"]}
+    yaml_content = yaml.dump(data)
+    temp_dir_file.write_text(yaml_content)
+
+    actual = read_yaml_fixture("test.yaml")
+    assert actual == data
+
+
+def test_read_yaml_fixture_encoding(read_yaml_fixture, temp_dir):
+    """Test read_yaml_fixture with different encoding."""
+    data = {"message": "Hello 世界", "location": "São Paulo", "café": "François"}
+    test_file = temp_dir / "unicode.yaml"
+    yaml_content = yaml.dump(data, allow_unicode=True)
+    test_file.write_text(yaml_content, encoding="utf-8")
+
+    result = read_yaml_fixture("unicode.yaml", encoding="utf-8")
+    assert result == data
+
+
+def test_read_yaml_fixture_list(read_yaml_fixture, temp_dir):
+    """Test read_yaml_fixture with YAML list."""
+    data = [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}]
+    test_file = temp_dir / "list.yaml"
+    yaml_content = yaml.dump(data)
+    test_file.write_text(yaml_content)
+
+    result = read_yaml_fixture("list.yaml")
+    assert result == data
+
+
+def test_read_yaml_fixture_nested_structure(read_yaml_fixture, temp_dir):
+    """Test read_yaml_fixture with complex nested YAML structure."""
+    data = {
+        "database": {
+            "host": "localhost",
+            "port": 5432,
+            "credentials": {"username": "admin", "password": "secret"},
+        },
+        "features": {"debug": True, "cache": False},
+        "servers": ["web1", "web2", "db1"],
+    }
+    test_file = temp_dir / "config.yaml"
+    yaml_content = yaml.dump(data)
+    test_file.write_text(yaml_content)
+
+    result = read_yaml_fixture("config.yaml")
+    assert result == data
+    assert result["database"]["port"] == 5432
+    assert len(result["servers"]) == 3
+
+
+def test_read_yaml_fixture_safe_vs_unsafe_load(read_yaml_fixture, temp_dir):
+    """Test read_yaml_fixture with safe vs unsafe loading."""
+    # Simple data that works with both loaders
+    data = {"simple": "value", "number": 42}
+    test_file = temp_dir / "simple.yaml"
+    yaml_content = yaml.dump(data)
+    test_file.write_text(yaml_content)
+
+    # Test safe loading (default)
+    result_safe = read_yaml_fixture("simple.yaml", unsafe_load=False)
+    assert result_safe == data
+
+    # Test unsafe loading
+    result_unsafe = read_yaml_fixture("simple.yaml", unsafe_load=True)
+    assert result_unsafe == data
+
+
+def test_read_yaml_fixture_invalid_yaml(read_yaml_fixture, temp_dir):
+    """Test read_yaml_fixture with invalid YAML raises error."""
+    test_file = temp_dir / "invalid.yaml"
+    test_file.write_text("{ invalid: yaml: content }")
+
+    with pytest.raises(yaml.YAMLError):
+        read_yaml_fixture("invalid.yaml")
+
+
+def test_read_yaml_fixture_empty_file(read_yaml_fixture, temp_dir):
+    """Test read_yaml_fixture with empty file returns None."""
+    test_file = temp_dir / "empty.yaml"
+    test_file.write_text("")
+
+    result = read_yaml_fixture("empty.yaml")
+    assert result is None
+
+
+def test_read_yaml_fixture_nonexistent_file(read_yaml_fixture):
+    """Test read_yaml_fixture with nonexistent file raises error."""
+    with pytest.raises(FileNotFoundError):
+        read_yaml_fixture("nonexistent.yaml")
+
+
+def test_read_yaml_fixture_missing_pyyaml(path_for_fixture, temp_dir, monkeypatch):
+    """Test read_yaml_fixture raises ImportError when PyYAML is not available."""
+    # Mock yaml as None to simulate missing PyYAML
+    import pytest_fixtures_fixtures.pytest_plugin as plugin_module
+
+    monkeypatch.setattr(plugin_module, "yaml", None)
+
+    # Re-create the fixture function with mocked yaml
+    from pytest_fixtures_fixtures.pytest_plugin import read_yaml_fixture
+
+    yaml_fixture_func = read_yaml_fixture.__wrapped__(path_for_fixture)
+
+    with pytest.raises(ImportError, match="PyYAML is required to use read_yaml_fixture"):
+        yaml_fixture_func("test.yaml")
+
+
 def test_read_fixture_with_custom_yaml_deserialize(read_fixture, temp_dir):
     """Test read_fixture with custom YAML deserialization."""
     temp_dir_file = temp_dir / "test.yaml"

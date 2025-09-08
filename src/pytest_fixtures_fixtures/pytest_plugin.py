@@ -5,6 +5,12 @@ import json
 import os
 from collections.abc import Callable, Generator
 from pathlib import Path
+from typing import Any
+
+try:
+    import yaml
+except ImportError:
+    yaml = None
 
 import pytest
 
@@ -357,3 +363,67 @@ def read_csv_dict_fixture(path_for_fixture):
             yield from csv.DictReader(f)
 
     return _read_csv_dict_fixture
+
+
+@pytest.fixture
+def read_yaml_fixture(path_for_fixture):
+    """
+    Read and parse a YAML fixture file.
+
+    This fixture returns a function that reads YAML fixture files and
+    automatically parses them into Python objects (typically dictionaries).
+    Requires the PyYAML library to be installed.
+
+    Args:
+        path_for_fixture: Function to get paths to fixture files.
+
+    Returns:
+        Callable: A function that reads and parses YAML fixture files.
+
+    The returned function accepts:
+        *fixture_name: Components of the YAML fixture file path.
+        encoding: Text encoding to use when reading the file (default: "utf-8").
+        unsafe_load: If True, uses yaml.FullLoader instead of yaml.SafeLoader (default: False).
+                    WARNING: Only use unsafe_load=True with trusted YAML content.
+
+    Returns:
+        Any: The parsed YAML data (typically a dictionary or list).
+
+    Raises:
+        ImportError: If PyYAML is not installed.
+        FileNotFoundError: If the fixture file doesn't exist.
+        yaml.YAMLError: If the file contains invalid YAML syntax.
+
+    Example:
+        >>> def test_config_data(read_yaml_fixture):
+        ...     config = read_yaml_fixture("config", "settings.yaml")
+        ...     assert config["database"]["host"] == "localhost"
+        ...     assert config["debug"] is False
+        ...
+        >>> def test_user_list(read_yaml_fixture):
+        ...     users = read_yaml_fixture("data", "users.yaml")
+        ...     assert len(users) > 0
+        ...     assert users[0]["name"] == "Alice"
+
+    Note:
+        By default, uses yaml.SafeLoader for security. Only use unsafe_load=True
+        if you trust the YAML content and need features not supported by SafeLoader.
+
+    """
+
+    def _read_yaml_fixture(
+        *fixture_name: str | os.PathLike[str],
+        encoding: str = "utf-8",
+        unsafe_load: bool = False,
+    ) -> Any:
+        if yaml is None:
+            raise ImportError(
+                "PyYAML is required to use read_yaml_fixture. Install it: https://pypi.org/project/PyYAML/"
+            )
+
+        path = path_for_fixture(*fixture_name)
+        with open(path, encoding=encoding) as f:
+            loader = yaml.FullLoader if unsafe_load else yaml.SafeLoader
+            return yaml.load(f, Loader=loader)
+
+    return _read_yaml_fixture
