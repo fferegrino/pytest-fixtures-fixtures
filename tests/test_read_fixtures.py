@@ -3,6 +3,8 @@ import json
 import pytest
 import yaml
 
+from pytest_fixtures_fixtures import ReadJsonFixture
+
 
 @pytest.fixture
 def temp_dir(tmp_path):
@@ -16,7 +18,7 @@ def fixtures_path(temp_dir):
     return temp_dir
 
 
-def test_read_json_fixture(read_json_fixture, temp_dir):
+def test_read_json_fixture(read_json_fixture: ReadJsonFixture, temp_dir):
     """Test read_json_fixture with valid JSON file."""
     temp_dir_file = temp_dir / "test.json"
     dictionary = {"test": "test"}

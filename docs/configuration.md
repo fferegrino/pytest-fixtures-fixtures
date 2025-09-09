@@ -107,33 +107,6 @@ Then override for integration tests:
 pytest tests/integration/ --fixtures-fixtures-path=tests/fixtures/integration
 ```
 
-## Fixture Organization Best Practices
-
-### Recommended Directory Structure
-
-```
-tests/
-├── fixtures/
-│   ├── api/
-│   │   ├── responses/
-│   │   │   ├── users.json
-│   │   │   └── products.json
-│   │   └── requests/
-│   │       ├── create_user.json
-│   │       └── update_product.json
-│   ├── data/
-│   │   ├── users.csv
-│   │   ├── products.yaml
-│   │   └── orders.jsonl
-│   ├── config/
-│   │   ├── settings.yaml
-│   │   └── database.json
-│   └── logs/
-│       ├── error.jsonl
-│       └── access.jsonl
-└── test_*.py
-```
-
 ## Configuration for Parametrization
 
 The `parametrize_from_fixture` decorator does not work at test runtime as tests need to be discovered before they are run, so you have several options to configure the fixtures directory for parametrization.

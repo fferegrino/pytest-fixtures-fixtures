@@ -9,7 +9,7 @@ in test functions to provide better type checking and IDE support.
 import os
 from collections.abc import Callable, Generator
 from pathlib import Path
-from typing import Any, Protocol, Union
+from typing import Any, Protocol
 
 
 class FixturePath(Protocol):
@@ -22,14 +22,15 @@ class FixturePath(Protocol):
     accessing test fixture files.
 
     Args:
-        *fixture_name (str | os.PathLike[str]): One or more path components (e.g., "data", "sample.json"). Can be strings or path-like objects.
-        must_exist (bool): If True (default), raise FileNotFoundError if the file does not exist.
+        *fixture_name (str | os.PathLike[str]): One or more path components (e.g., "data", "sample.json").
+                    Can be strings or path-like objects.
+        must_exist (bool): If `True` (default), raise `FileNotFoundError` if the file does not exist.
 
     Returns:
         Path: The constructed fixture path.
 
     Raises:
-        FileNotFoundError: If must_exist=True and the fixture file doesn't exist.
+        FileNotFoundError: If `must_exist=True` and the fixture file doesn't exist.
 
     Example:
         Using the FixturePath protocol in a test:
@@ -59,17 +60,19 @@ class ReadFixture(Protocol):
     accessing fixture file contents.
 
     Args:
-        *fixture_name (str | os.PathLike[str]): Components of the fixture file path. Can be strings or path-like objects.
-        encoding (str): Text encoding to use when reading the file (default: "utf-8").
-        mode (str): File open mode (default: "r" for text mode).
-        deserialize (Callable[[str | bytes], Any]): Function to process the file contents. Takes str or bytes and returns Any (default: identity).
+        *fixture_name (str | os.PathLike[str]): Components of the fixture file path.
+                    Can be strings or path-like objects.
+        encoding (str): Text encoding to use when reading the file (default: `"utf-8"`).
+        mode (str): File open mode (default: `"r"` for text mode).
+        deserialize (Callable[[str | bytes], Any]): Function to process the file contents.
+                    Takes `str` or `bytes` and returns `Any` (default: identity).
 
     Returns:
-        Any: The result of applying the deserialize function to the file contents.
+        Any: The result of applying the `deserialize` function to the file contents.
 
     Raises:
         FileNotFoundError: If the fixture file doesn't exist.
-        UnicodeDecodeError: If the file cannot be decoded with the specified encoding.
+        UnicodeDecodeError: If the file cannot be decoded with the specified `encoding`.
         OSError: If there's an error reading the file.
 
     Example:
@@ -105,8 +108,9 @@ class ReadJsonFixture(Protocol):
     and automatically parse them into Python dictionaries.
 
     Args:
-        *fixture_name (str | os.PathLike[str]): Components of the JSON fixture file path. Can be strings or path-like objects.
-        encoding (str): Text encoding to use when reading the file (default: "utf-8").
+        *fixture_name (str | os.PathLike[str]): Components of the JSON fixture file path.
+                    Can be strings or path-like objects.
+        encoding (str): Text encoding to use when reading the file (default: `"utf-8"`).
 
     Returns:
         dict: The parsed JSON data as a Python dictionary.
@@ -142,8 +146,9 @@ class ReadJsonlFixture(Protocol):
     dictionaries, one for each line in the file.
 
     Args:
-        *fixture_name (str | os.PathLike[str]): Components of the JSONL fixture file path. Can be strings or path-like objects.
-        encoding (str): Text encoding to use when reading the file (default: "utf-8").
+        *fixture_name (str | os.PathLike[str]): Components of the JSONL fixture file path.
+                    Can be strings or path-like objects.
+        encoding (str): Text encoding to use when reading the file (default: `"utf-8"`).
 
     Returns:
         Generator[dict, None, None]: A generator of dictionaries, one for each JSON object in the file.
@@ -180,8 +185,9 @@ class ReadCsvFixture(Protocol):
     row in the file. Each row is returned as a list of strings.
 
     Args:
-        *fixture_name (str | os.PathLike[str]): Components of the CSV fixture file path. Can be strings or path-like objects.
-        encoding (str): Text encoding to use when reading the file (default: "utf-8").
+        *fixture_name (str | os.PathLike[str]): Components of the CSV fixture file path.
+                    Can be strings or path-like objects.
+        encoding (str): Text encoding to use when reading the file (default: `"utf-8"`).
 
     Returns:
         Generator[list[str], None, None]: A generator of lists, one for each row in the CSV file.
@@ -219,8 +225,9 @@ class ReadCsvDictFixture(Protocol):
     headers as keys and row values as string values.
 
     Args:
-        *fixture_name (str | os.PathLike[str]): Components of the CSV fixture file path. Can be strings or path-like objects.
-        encoding (str): Text encoding to use when reading the file (default: "utf-8").
+        *fixture_name (str | os.PathLike[str]): Components of the CSV fixture file path.
+                    Can be strings or path-like objects.
+        encoding (str): Text encoding to use when reading the file (default: `"utf-8"`).
 
     Returns:
         Generator[dict[str, str], None, None]: A generator of dictionaries, one for each row in the CSV file.
@@ -257,9 +264,10 @@ class ReadYamlFixture(Protocol):
     Requires the PyYAML library to be installed.
 
     Args:
-        *fixture_name (str | os.PathLike[str]): Components of the YAML fixture file path. Can be strings or path-like objects.
-        encoding (str): Text encoding to use when reading the file (default: "utf-8").
-        unsafe_load (bool): If True, uses yaml.FullLoader instead of yaml.SafeLoader (default: False).
+        *fixture_name (str | os.PathLike[str]): Components of the YAML fixture file path.
+                    Can be strings or path-like objects.
+        encoding (str): Text encoding to use when reading the file (default: `"utf-8"`).
+        unsafe_load (bool): If `True`, uses `yaml.FullLoader` instead of `yaml.SafeLoader` (default: `False`).
                     WARNING: Only use unsafe_load=True with trusted YAML content.
 
     Returns:

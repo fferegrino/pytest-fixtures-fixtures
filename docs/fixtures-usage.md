@@ -161,6 +161,39 @@ def test_read_yaml_list(read_yaml_fixture):
     assert users[1]["name"] == "Bob"
 ```
 
+## Using Type Protocols (Recommended)
+
+For better type safety and IDE support, we recommend using the provided type protocols as type hints in your test functions. These protocols describe the exact interface of each fixture, providing better autocomplete, type checking, and documentation.
+
+??? question "What are protocols?"
+
+    Protocols are a way to define structural typing in Python. They describe the interface (method signatures) that a type should have, without requiring inheritance. When you use a protocol as a type hint, any object that implements the required interface will be accepted.
+
+### Available Protocols
+
+The plugin provides protocols for all fixture types:
+
+- `FixturePath` - for the `path_for_fixture` fixture
+- `ReadFixture` - for the `read_fixture` fixture  
+- `ReadJsonFixture` - for the `read_json_fixture` fixture
+- `ReadJsonlFixture` - for the `read_jsonl_fixture` fixture
+- `ReadCsvFixture` - for the `read_csv_fixture` fixture
+- `ReadCsvDictFixture` - for the `read_csv_dict_fixture` fixture
+- `ReadYamlFixture` - for the `read_yaml_fixture` fixture
+
+### How to Use Protocols
+
+Import the protocols and use them as type hints in your test functions:
+
+```python
+from pytest_fixtures_fixtures import ReadJsonFixture
+
+def test_with_type_hints(read_json_fixture: ReadJsonFixture):
+    # Your IDE now provides better autocomplete and type checking!
+    config = read_json_fixture("config", "settings.json")
+    assert config["database"]["host"] == "localhost"
+```
+
 ## Error Handling
 
 The fixtures provide clear error messages for common issues:
