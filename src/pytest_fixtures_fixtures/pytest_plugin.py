@@ -5,7 +5,7 @@ import json
 import os
 from collections.abc import Callable, Generator
 from pathlib import Path
-from typing import Any, TypeAlias
+from typing import Any, Protocol
 
 try:
     import yaml
@@ -13,22 +13,6 @@ except ImportError:
     yaml = None
 
 import pytest
-
-PathFn: TypeAlias = Callable[..., Path]
-"""Type alias for functions that return Path objects.
-
-This type represents callable objects that can accept variable arguments
-and return a pathlib.Path object. Used primarily for fixture functions
-that construct paths to fixture files.
-
-Example:
-    ```python
-    def create_path_function() -> PathFn:
-        def _path_func(*args: str) -> Path:
-            return Path(*args)
-        return _path_func
-    ```
-"""
 
 
 def pytest_configure(config: pytest.Config):
@@ -82,8 +66,93 @@ def fixtures_path(pytestconfig: pytest.Config, request: pytest.FixtureRequest) -
     return Path(pytestconfig.rootdir) / "tests" / "fixtures"
 
 
+class FixturePath(Protocol):
+    """
+    A callable that constructs paths inside the fixtures directory.
+
+    This protocol defines the interface for functions that create paths to
+    fixture files within the fixtures directory. It's used by the
+    `path_for_fixture` fixture to provide a consistent interface for
+    accessing test fixture files.
+
+    Args:
+        *fixture_name: One or more path components (e.g., "data", "sample.json").
+        must_exist: If True (default), raise FileNotFoundError if the file does not exist.
+
+    Returns:
+        Path: The constructed fixture path.
+
+    Raises:
+        FileNotFoundError: If must_exist=True and the fixture file doesn't exist.
+
+    Example:
+        Using the FixturePath protocol in a test:
+
+        ```python
+        def test_fixture_path(path_for_fixture: FixturePath):
+            # Construct a path to a fixture file
+            data_path = path_for_fixture("data", "sample.json")
+            assert data_path.suffix == ".json"
+
+            # Check if a file exists without raising an error
+            optional_path = path_for_fixture("optional", "file.txt", must_exist=False)
+        ```
+
+    """
+
+    def __call__(self, *fixture_name: str | os.PathLike[str], must_exist: bool = True) -> Path: ...  # noqa: D102
+
+
+class ReadFixture(Protocol):
+    r"""
+    A callable that reads and optionally deserializes fixture files.
+
+    This protocol defines the interface for functions that read fixture files
+    with customizable encoding, file mode, and deserialization. It's used by
+    various read fixture functions to provide a consistent interface for
+    accessing fixture file contents.
+
+    Args:
+        *fixture_name: Components of the fixture file path.
+        encoding: Text encoding to use when reading the file (default: "utf-8").
+        mode: File open mode (default: "r" for text mode).
+        deserialize: Function to process the file contents (default: identity).
+
+    Returns:
+        Any: The result of applying the deserialize function to the file contents.
+
+    Raises:
+        FileNotFoundError: If the fixture file doesn't exist.
+        UnicodeDecodeError: If the file cannot be decoded with the specified encoding.
+        OSError: If there's an error reading the file.
+
+    Example:
+        Using the ReadFixture protocol in a test:
+
+        ```python
+        def test_read_fixture(read_fixture: ReadFixture):
+            # Read a text file
+            content = read_fixture("data", "sample.txt")
+            assert "hello" in content
+
+            # Read a binary file
+            data = read_fixture("images", "logo.png", mode="rb", deserialize=lambda x: x)
+            assert data.startswith(b'\x89PNG')
+        ```
+
+    """
+
+    def __call__(  # noqa: D102
+        self,
+        *fixture_name: str | os.PathLike[str],
+        encoding: str = "utf-8",
+        mode: str = "r",
+        deserialize: Callable = lambda x: x,
+    ) -> Any: ...
+
+
 @pytest.fixture
-def path_for_fixture(fixtures_path: Path) -> PathFn:
+def path_for_fixture(fixtures_path: Path) -> FixturePath:
     """
     Get a Path object for a specific fixture file.
 
@@ -137,7 +206,7 @@ def path_for_fixture(fixtures_path: Path) -> PathFn:
 
 
 @pytest.fixture
-def read_fixture(path_for_fixture: PathFn) -> Callable[..., Any]:
+def read_fixture(path_for_fixture: FixturePath) -> ReadFixture:
     r"""
     Read and optionally deserialize a fixture file.
 
@@ -198,7 +267,7 @@ def read_fixture(path_for_fixture: PathFn) -> Callable[..., Any]:
 
 
 @pytest.fixture
-def read_json_fixture(read_fixture: Callable[..., Any]) -> Callable[..., dict]:
+def read_json_fixture(read_fixture: ReadFixture) -> Callable[..., dict]:
     """
     Read and parse a JSON fixture file.
 
@@ -252,7 +321,7 @@ def read_json_fixture(read_fixture: Callable[..., Any]) -> Callable[..., dict]:
 
 
 @pytest.fixture
-def read_jsonl_fixture(path_for_fixture: PathFn) -> Callable[..., Generator[dict, None, None]]:
+def read_jsonl_fixture(path_for_fixture: FixturePath) -> Callable[..., Generator[dict, None, None]]:
     """
     Read and parse a JSONL (JSON Lines) fixture file.
 
@@ -313,7 +382,7 @@ def read_jsonl_fixture(path_for_fixture: PathFn) -> Callable[..., Generator[dict
 
 
 @pytest.fixture
-def read_csv_fixture(path_for_fixture: PathFn) -> Callable[..., Generator[list[str], None, None]]:
+def read_csv_fixture(path_for_fixture: FixturePath) -> Callable[..., Generator[list[str], None, None]]:
     """
     Read and parse a CSV fixture file.
 
@@ -373,7 +442,7 @@ def read_csv_fixture(path_for_fixture: PathFn) -> Callable[..., Generator[list[s
 
 @pytest.fixture
 def read_csv_dict_fixture(
-    path_for_fixture: PathFn,
+    path_for_fixture: FixturePath,
 ) -> Callable[..., Generator[dict[str, str], None, None]]:
     """
     Read and parse a CSV fixture file as dictionaries.
@@ -436,7 +505,7 @@ def read_csv_dict_fixture(
 
 
 @pytest.fixture
-def read_yaml_fixture(path_for_fixture: PathFn) -> Callable[..., Any]:
+def read_yaml_fixture(path_for_fixture: FixturePath) -> Callable[..., Any]:
     """
     Read and parse a YAML fixture file.
 
