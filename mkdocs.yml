@@ -63,6 +63,9 @@ plugins:
             members_order: source
             group_by_category: true
             show_category_heading: true
+            show_signature_annotations: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
 
 nav:
   - Home: index.md

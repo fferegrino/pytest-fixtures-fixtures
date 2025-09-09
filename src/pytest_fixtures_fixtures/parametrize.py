@@ -15,7 +15,32 @@ except ImportError:
     yaml = None
 
 F = TypeVar("F", bound=Callable[..., Any])
+"""Type variable for callable objects.
+
+Represents any callable that accepts variable arguments and returns any type.
+Used for decorator type annotations to preserve the original function signature.
+"""
+
 FixtureData: TypeAlias = tuple[str, list[tuple], list[str] | None]
+"""Type alias for parametrized test data extracted from fixture files.
+
+This type represents the structure of data returned by fixture parsing functions.
+It contains:
+
+- `str`: The fixture file name or identifier
+- `list[tuple]`: List of parameter tuples for each test case
+- `list[str] | None`: Optional list of test IDs, or None for auto-generated IDs
+
+Example:
+    ```python
+    # Example FixtureData for a CSV with columns: id,name,age
+    fixture_data: FixtureData = (
+        "users.csv",
+        [("alice", "30"), ("bob", "25")],  # Parameter tuples
+        ["test_alice", "test_bob"]          # Optional test IDs
+    )
+    ```
+"""
 
 
 def parametrize_from_fixture(  # noqa: C901

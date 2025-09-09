@@ -15,6 +15,20 @@ except ImportError:
 import pytest
 
 PathFn: TypeAlias = Callable[..., Path]
+"""Type alias for functions that return Path objects.
+
+This type represents callable objects that can accept variable arguments
+and return a pathlib.Path object. Used primarily for fixture functions
+that construct paths to fixture files.
+
+Example:
+    ```python
+    def create_path_function() -> PathFn:
+        def _path_func(*args: str) -> Path:
+            return Path(*args)
+        return _path_func
+    ```
+"""
 
 
 def pytest_configure(config: pytest.Config):
