@@ -2,6 +2,6 @@
 
 from .parametrize import parametrize_from_fixture
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 
 __all__ = ["parametrize_from_fixture"]
