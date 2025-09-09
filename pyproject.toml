@@ -1,6 +1,6 @@
 [project]
 name = "pytest-fixtures-fixtures"
-version = "0.3.2"
+version = "0.3.3"
 description = "Handy fixtues to access your fixtures from your _pytest_ tests."
 readme = "readme.md"
 authors = [
@@ -62,7 +62,7 @@ docs = [
 pytest_fixtures_fixtures = "pytest_fixtures_fixtures.pytest_plugin"
 
 [tool.bumpversion]
-current_version = "0.3.2"
+current_version = "0.3.3"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 tag = true
