@@ -51,9 +51,13 @@ def fixtures_path(pytestconfig, request):
         Path: A pathlib.Path object pointing to the fixtures directory.
 
     Example:
-        >>> def test_something(fixtures_path):
-        ...     assert fixtures_path.exists()
-        ...     assert fixtures_path.name == "fixtures"
+        Basic usage in a test function:
+        
+        ```python
+        def test_something(fixtures_path):
+            assert fixtures_path.exists()
+            assert fixtures_path.name == "fixtures"
+        ```
 
     """
     fixtures_path = pytestconfig.getoption("fixtures_fixtures_path")
@@ -88,13 +92,21 @@ def path_for_fixture(fixtures_path):
         FileNotFoundError: If must_exist=True and the fixture file doesn't exist.
 
     Example:
-        >>> def test_data_file(path_for_fixture):
-        ...     data_path = path_for_fixture("data", "sample.json")
-        ...     assert data_path.suffix == ".json"
-        ...
-        >>> def test_optional_fixture(path_for_fixture):
-        ...     # Won't raise error if file doesn't exist
-        ...     path = path_for_fixture("optional", "file.txt", must_exist=False)
+        Getting a path to a fixture file:
+        
+        ```python
+        def test_data_file(path_for_fixture):
+            data_path = path_for_fixture("data", "sample.json")
+            assert data_path.suffix == ".json"
+        ```
+        
+        Working with optional fixtures that may not exist:
+        
+        ```python
+        def test_optional_fixture(path_for_fixture):
+            # Won't raise error if file doesn't exist
+            path = path_for_fixture("optional", "file.txt", must_exist=False)
+        ```
 
     """
 
@@ -133,13 +145,21 @@ def read_fixture(path_for_fixture):
         Any: The result of applying the deserialize function to the file contents.
 
     Example:
-        >>> def test_text_fixture(read_fixture):
-        ...     content = read_fixture("data", "sample.txt")
-        ...     assert "hello" in content
-        ...
-        >>> def test_binary_fixture(read_fixture):
-        ...     data = read_fixture("data", "image.png", mode="rb", deserialize=lambda x: x)
-        ...     assert data.startswith(b'\x89PNG')
+        Reading a text fixture file:
+        
+        ```python
+        def test_text_fixture(read_fixture):
+            content = read_fixture("data", "sample.txt")
+            assert "hello" in content
+        ```
+        
+        Reading a binary fixture file:
+        
+        ```python
+        def test_binary_fixture(read_fixture):
+            data = read_fixture("data", "image.png", mode="rb", deserialize=lambda x: x)
+            assert data.startswith(b'\x89PNG')
+        ```
 
     """
 
@@ -188,13 +208,21 @@ def read_json_fixture(read_fixture):
         json.JSONDecodeError: If the file contains invalid JSON.
 
     Example:
-        >>> def test_config_data(read_json_fixture):
-        ...     config = read_json_fixture("config", "settings.json")
-        ...     assert config["database"]["host"] == "localhost"
-        ...
-        >>> def test_user_data(read_json_fixture):
-        ...     users = read_json_fixture("data", "users.json")
-        ...     assert len(users["users"]) > 0
+        Reading a configuration JSON file:
+        
+        ```python
+        def test_config_data(read_json_fixture):
+            config = read_json_fixture("config", "settings.json")
+            assert config["database"]["host"] == "localhost"
+        ```
+        
+        Reading user data from a JSON file:
+        
+        ```python
+        def test_user_data(read_json_fixture):
+            users = read_json_fixture("data", "users.json")
+            assert len(users["users"]) > 0
+        ```
 
     """
 
@@ -235,14 +263,22 @@ def read_jsonl_fixture(path_for_fixture):
         json.JSONDecodeError: If any line contains invalid JSON.
 
     Example:
-        >>> def test_log_entries(read_jsonl_fixture):
-        ...     logs = read_jsonl_fixture("logs", "access.jsonl")
-        ...     first_log = next(logs)
-        ...     assert "timestamp" in first_log
-        ...
-        >>> def test_user_records(read_jsonl_fixture):
-        ...     users = read_jsonl_fixture("data", "users.jsonl")
-        ...     assert all("id" in user for user in users)
+        Reading log entries from a JSONL file:
+        
+        ```python
+        def test_log_entries(read_jsonl_fixture):
+            logs = read_jsonl_fixture("logs", "access.jsonl")
+            first_log = next(logs)
+            assert "timestamp" in first_log
+        ```
+        
+        Processing user records from a JSONL file:
+        
+        ```python
+        def test_user_records(read_jsonl_fixture):
+            users = read_jsonl_fixture("data", "users.jsonl")
+            assert all("id" in user for user in users)
+        ```
 
     """
 
@@ -288,15 +324,23 @@ def read_csv_fixture(path_for_fixture):
         csv.Error: If the file contains malformed CSV data.
 
     Example:
-        >>> def test_user_data(read_csv_fixture):
-        ...     rows = read_csv_fixture("data", "users.csv")
-        ...     header = next(rows)  # First row is typically headers
-        ...     assert header == ["name", "age", "email"]
-        ...
-        >>> def test_sales_data(read_csv_fixture):
-        ...     sales = read_csv_fixture("reports", "sales.csv")
-        ...     total_rows = sum(1 for row in sales)
-        ...     assert total_rows > 0
+        Reading CSV data with headers:
+        
+        ```python
+        def test_user_data(read_csv_fixture):
+            rows = read_csv_fixture("data", "users.csv")
+            header = next(rows)  # First row is typically headers
+            assert header == ["name", "age", "email"]
+        ```
+        
+        Processing sales data from a CSV file:
+        
+        ```python
+        def test_sales_data(read_csv_fixture):
+            sales = read_csv_fixture("reports", "sales.csv")
+            total_rows = sum(1 for row in sales)
+            assert total_rows > 0
+        ```
 
     """
 
@@ -340,17 +384,25 @@ def read_csv_dict_fixture(path_for_fixture):
         csv.Error: If the file contains malformed CSV data.
 
     Example:
-        >>> def test_user_data(read_csv_dict_fixture):
-        ...     users = read_csv_dict_fixture("data", "users.csv")
-        ...     first_user = next(users)
-        ...     assert first_user["name"] == "Alice"
-        ...     assert first_user["age"] == "30"
-        ...
-        >>> def test_sales_records(read_csv_dict_fixture):
-        ...     sales = read_csv_dict_fixture("reports", "sales.csv")
-        ...     for record in sales:
-        ...         assert "product" in record
-        ...         assert "revenue" in record
+        Reading user data as dictionaries:
+        
+        ```python
+        def test_user_data(read_csv_dict_fixture):
+            users = read_csv_dict_fixture("data", "users.csv")
+            first_user = next(users)
+            assert first_user["name"] == "Alice"
+            assert first_user["age"] == "30"
+        ```
+        
+        Processing sales records with dict access:
+        
+        ```python
+        def test_sales_records(read_csv_dict_fixture):
+            sales = read_csv_dict_fixture("reports", "sales.csv")
+            for record in sales:
+                assert "product" in record
+                assert "revenue" in record
+        ```
 
     """
 
@@ -395,15 +447,23 @@ def read_yaml_fixture(path_for_fixture):
         yaml.YAMLError: If the file contains invalid YAML syntax.
 
     Example:
-        >>> def test_config_data(read_yaml_fixture):
-        ...     config = read_yaml_fixture("config", "settings.yaml")
-        ...     assert config["database"]["host"] == "localhost"
-        ...     assert config["debug"] is False
-        ...
-        >>> def test_user_list(read_yaml_fixture):
-        ...     users = read_yaml_fixture("data", "users.yaml")
-        ...     assert len(users) > 0
-        ...     assert users[0]["name"] == "Alice"
+        Reading configuration from a YAML file:
+        
+        ```python
+        def test_config_data(read_yaml_fixture):
+            config = read_yaml_fixture("config", "settings.yaml")
+            assert config["database"]["host"] == "localhost"
+            assert config["debug"] is False
+        ```
+        
+        Processing user data from a YAML file:
+        
+        ```python
+        def test_user_list(read_yaml_fixture):
+            users = read_yaml_fixture("data", "users.yaml")
+            assert len(users) > 0
+            assert users[0]["name"] == "Alice"
+        ```
 
     Note:
         By default, uses yaml.SafeLoader for security. Only use unsafe_load=True

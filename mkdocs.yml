@@ -1,0 +1,82 @@
+site_name: pytest-fixtures-fixtures
+site_description: Handy fixtures to access your fixtures from your pytest tests
+site_url: https://fferegrino.github.io/pytest-fixtures-fixtures/
+repo_url: https://github.com/fferegrino/pytest-fixtures-fixtures
+repo_name: fferegrino/pytest-fixtures-fixtures
+
+theme:
+  name: material
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - autorefs
+  - gen-files:
+      scripts:
+        - docs/gen_ref_pages.py
+  - literate-nav:
+      nav_file: summary.md
+  - section-index
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            members_order: source
+            group_by_category: true
+            show_category_heading: true
+
+nav:
+  - Home: index.md
+  - Documentation:
+    - Fixtures Usage: fixtures-usage.md
+    - Test Parametrization: parametrize.md
+    - Configuration: configuration.md
+    - Best Practices: best-practices.md
+  - API Reference: reference/
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/fferegrino/pytest-fixtures-fixtures
+  version:
+    provider: mike
+  generator: false
