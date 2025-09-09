@@ -1,8 +1,10 @@
 """Tests for parametrize_from_fixture decorator."""
 
 import json
+import os
+from unittest.mock import patch
 
-from pytest_fixtures_fixtures.parametrize import parametrize_from_fixture
+from pytest_fixtures_fixtures.parametrize import _get_fixtures_path, parametrize_from_fixture
 
 
 def assert_all_ints(*value):
@@ -162,3 +164,136 @@ class TestHelperReaderFunctions:
         assert param_names == "name"
         assert param_values == [("Alice",), ("Bob",)]
         assert test_ids == ["yaml_1", "yaml_2"]
+
+
+class TestGetFixturesPath:
+    """Test the _get_fixtures_path function with various configurations."""
+
+    def test_explicit_fixtures_dir_parameter(self, tmp_path):
+        """Test that explicit fixtures_dir parameter takes precedence."""
+        custom_path = tmp_path / "custom_fixtures"
+        custom_path.mkdir()
+
+        with patch.dict(os.environ, {"PYTEST_FIXTURES_FIXTURES_PATH_PARAMETRIZE": str(tmp_path / "env_fixtures")}):
+            result = _get_fixtures_path(fixtures_dir=str(custom_path))
+            assert result == custom_path.resolve()
+
+    def test_environment_variable_when_no_param(self, tmp_path):
+        """Test that environment variable is used when no fixtures_dir parameter is provided."""
+        env_path = tmp_path / "env_fixtures"
+        env_path.mkdir()
+
+        with patch.dict(os.environ, {"PYTEST_FIXTURES_FIXTURES_PATH_PARAMETRIZE": str(env_path)}):
+            result = _get_fixtures_path()
+            assert result == env_path.resolve()
+
+    def test_environment_variable_with_relative_path(self, tmp_path, monkeypatch):
+        """Test that environment variable works with relative paths."""
+        # Change to tmp_path directory
+        monkeypatch.chdir(tmp_path)
+
+        # Create relative path
+        rel_path = "custom/fixtures"
+        full_path = tmp_path / "custom" / "fixtures"
+        full_path.mkdir(parents=True)
+
+        with patch.dict(os.environ, {"PYTEST_FIXTURES_FIXTURES_PATH_PARAMETRIZE": rel_path}):
+            result = _get_fixtures_path()
+            assert result == full_path.resolve()
+
+    def test_default_path_when_no_config(self, tmp_path, monkeypatch):
+        """Test that default path is used when no configuration is provided."""
+        # Change to tmp_path directory
+        monkeypatch.chdir(tmp_path)
+
+        # Create default fixtures directory
+        default_path = tmp_path / "tests" / "fixtures"
+
+        # Ensure environment variable is not set
+        with patch.dict(os.environ, {}, clear=True):
+            result = _get_fixtures_path()
+            assert result == default_path
+
+    def test_pathlib_path_parameter(self, tmp_path):
+        """Test that Path objects work as fixtures_dir parameter."""
+        custom_path = tmp_path / "pathlib_fixtures"
+        custom_path.mkdir()
+
+        result = _get_fixtures_path(fixtures_dir=custom_path)
+        assert result == custom_path.resolve()
+
+    def test_environment_variable_overrides_default_but_not_param(self, tmp_path):
+        """Test precedence: explicit param > env var > default."""
+        # Setup paths
+        param_path = tmp_path / "param_fixtures"
+        env_path = tmp_path / "env_fixtures"
+        param_path.mkdir()
+        env_path.mkdir()
+
+        # Test that env var overrides default
+        with patch.dict(os.environ, {"PYTEST_FIXTURES_FIXTURES_PATH_PARAMETRIZE": str(env_path)}):
+            result_env_only = _get_fixtures_path()
+            assert result_env_only == env_path.resolve()
+
+            # Test that param overrides env var
+            result_param_over_env = _get_fixtures_path(fixtures_dir=str(param_path))
+            assert result_param_over_env == param_path.resolve()
+
+
+class TestParametrizeWithCustomFixturesPath:
+    """Integration tests for parametrize_from_fixture with custom fixtures paths."""
+
+    def test_parametrize_with_environment_variable(self, tmp_path):
+        """Test that parametrization works with custom fixtures path from environment variable."""
+        # Create custom fixtures directory and file
+        custom_fixtures = tmp_path / "my_custom_fixtures"
+        custom_fixtures.mkdir()
+
+        test_file = custom_fixtures / "custom_test_data.csv"
+        test_file.write_text("a,b,c\n1,2,3\n4,5,9\n")
+
+        # Set environment variable
+        with patch.dict(os.environ, {"PYTEST_FIXTURES_FIXTURES_PATH_PARAMETRIZE": str(custom_fixtures)}):
+            # Create a test function with the decorator
+            @parametrize_from_fixture("custom_test_data.csv")
+            def test_custom_path(a, b, c):
+                assert int(a) + int(b) == int(c)
+
+            # The decorator should have been applied successfully
+            # Check that the test function has the parametrize mark
+            assert hasattr(test_custom_path, "pytestmark")
+            marks = test_custom_path.pytestmark
+            parametrize_marks = [mark for mark in marks if mark.name == "parametrize"]
+            assert len(parametrize_marks) == 1
+
+            # Check the parameter values
+            mark = parametrize_marks[0]
+            assert mark.kwargs["argnames"] == "a,b,c"
+            assert mark.kwargs["argvalues"] == [("1", "2", "3"), ("4", "5", "9")]
+
+    def test_parametrize_with_explicit_fixtures_dir(self, tmp_path):
+        """Test that parametrization works with explicit fixtures_dir parameter."""
+        # Create custom fixtures directory and file
+        custom_fixtures = tmp_path / "explicit_fixtures"
+        custom_fixtures.mkdir()
+
+        test_file = custom_fixtures / "explicit_test_data.json"
+        test_data = [{"x": 1, "y": 2}, {"x": 3, "y": 4}]
+        test_file.write_text(json.dumps(test_data))
+
+        # Create a test function with explicit fixtures_dir
+        @parametrize_from_fixture("explicit_test_data.json", fixtures_dir=str(custom_fixtures))
+        def test_explicit_path(x, y):
+            assert isinstance(x, int)
+            assert isinstance(y, int)
+
+        # Check that the decorator was applied successfully
+        assert hasattr(test_explicit_path, "pytestmark")
+        marks = test_explicit_path.pytestmark
+        parametrize_marks = [mark for mark in marks if mark.name == "parametrize"]
+        assert len(parametrize_marks) == 1
+
+        # Check the parameter values
+        mark = parametrize_marks[0]
+        assert mark.kwargs["argnames"] == "x,y"
+        assert mark.kwargs["argvalues"] == [(1, 2), (3, 4)]

@@ -2,9 +2,16 @@
 
 This guide covers how to configure the fixtures directory and customize the plugin behavior.
 
-## Custom Fixture Directory
+There are two main things you can configure, and it is important to know the difference between them.
 
-You can override the default fixtures directory (`tests/fixtures/`) in several ways:
+- **Custom Fixture Directory**: This is the directory where the fixtures are stored.
+- **Parametrization**: This is the way to parametrize the tests using the fixtures.
+
+Sadly, due to the way `pytest` works, they are independent of each other.
+
+## Runtime fixture directory
+
+**When your tests are running**, the fixture directory is set to the `tests/fixtures/` directory by default, you can override the path in several ways.
 
 ### Using Command Line Option
 
@@ -63,6 +70,8 @@ def test_with_custom_path(read_fixture, fixtures_path):
 
 ## Practical Configuration Examples
 
+Here are some practical examples when you would want to override the fixture directory.
+
 ### Example 1: Different fixtures for different environments
 
 ```bash
@@ -98,49 +107,6 @@ Then override for integration tests:
 pytest tests/integration/ --fixtures-fixtures-path=tests/fixtures/integration
 ```
 
-## Environment-Specific Configuration
-
-### Development vs Production Fixtures
-
-You can maintain separate fixture sets for different environments:
-
-```
-tests/
-├── fixtures/
-│   ├── dev/
-│   │   ├── database.json    # Small test database
-│   │   └── config.yaml      # Development settings
-│   ├── staging/
-│   │   ├── database.json    # Staging-like data
-│   │   └── config.yaml      # Staging settings
-│   └── prod/
-│       ├── database.json    # Production-like data
-│       └── config.yaml      # Production settings
-```
-
-Then use:
-
-```bash
-# Run tests against development fixtures
-pytest --fixtures-fixtures-path=tests/fixtures/dev
-
-# Run tests against production-like fixtures
-pytest --fixtures-fixtures-path=tests/fixtures/prod
-```
-
-### CI/CD Integration
-
-In your CI/CD pipeline, you can use different fixture sets:
-
-```yaml
-# GitHub Actions example
-- name: Run unit tests
-  run: pytest tests/unit/ --fixtures-fixtures-path=tests/fixtures/unit
-
-- name: Run integration tests  
-  run: pytest tests/integration/ --fixtures-fixtures-path=tests/fixtures/integration
-```
-
 ## Fixture Organization Best Practices
 
 ### Recommended Directory Structure
@@ -168,28 +134,40 @@ tests/
 └── test_*.py
 ```
 
-### Naming Conventions
-
-- Use descriptive names that indicate the fixture's purpose
-- Group related fixtures in subdirectories
-- Use consistent file extensions (`.json`, `.yaml`, `.csv`, etc.)
-- Include version numbers for evolving fixtures (`users_v1.json`, `users_v2.json`)
-
-### Size and Performance Considerations
-
-- Keep fixture files reasonably sized (< 1MB for fast test loading)
-- Use compressed formats (`.jsonl`) for large datasets
-- Consider splitting large fixtures into smaller, focused files
-- Use symbolic links for shared fixtures between test suites
-
 ## Configuration for Parametrization
 
-The `parametrize_from_fixture` decorator respects the same fixtures directory configuration:
+The `parametrize_from_fixture` decorator does not work at test runtime as tests need to be discovered before they are run, so you have several options to configure the fixtures directory for parametrization.
+
+### Option 1: Environment Variable (Recommended)
+
+Set the `PYTEST_FIXTURES_FIXTURES_PATH_PARAMETRIZE` environment variable to specify the fixtures directory for parametrization:
+
+```bash
+# Set environment variable for current session
+export PYTEST_FIXTURES_FIXTURES_PATH_PARAMETRIZE="tests/custom_fixtures"
+
+# Run tests - all parametrized tests will use the custom path
+pytest
+
+# Or set it for a single command
+PYTEST_FIXTURES_FIXTURES_PATH_PARAMETRIZE="tests/integration_fixtures" pytest
+```
+
+You can also set this in your CI/CD configuration or development environment setup:
+
+```bash
+# In .env file or CI configuration
+PYTEST_FIXTURES_FIXTURES_PATH_PARAMETRIZE=/path/to/shared/fixtures
+```
+
+### Option 2: Explicit fixtures_dir Parameter
+
+Override the fixtures directory for specific tests by passing the `fixtures_dir` argument to the decorator:
 
 ```python
 from pytest_fixtures_fixtures import parametrize_from_fixture
 
-# Uses the configured fixtures directory
+# Uses the default or environment-configured fixtures directory
 @parametrize_from_fixture("test_data.csv")
 def test_with_configured_path(a, b, c):
     assert int(a) + int(b) == int(c)
@@ -198,4 +176,59 @@ def test_with_configured_path(a, b, c):
 @parametrize_from_fixture("test_data.csv", fixtures_dir="custom/path")
 def test_with_custom_path(a, b, c):
     assert int(a) + int(b) == int(c)
+```
+
+### Configuration Precedence
+
+The fixtures directory is determined in the following order of precedence:
+
+1. **Explicit `fixtures_dir` parameter** (highest priority)
+2. **`PYTEST_FIXTURES_FIXTURES_PATH_PARAMETRIZE` environment variable**
+3. **Default path** (`tests/fixtures/` relative to current working directory)
+
+### Practical Examples
+
+**Example 1: Different fixtures for different test environments**
+
+```bash
+# Development fixtures
+export PYTEST_FIXTURES_FIXTURES_PATH_PARAMETRIZE="tests/fixtures/dev"
+pytest
+
+# Production-like fixtures
+export PYTEST_FIXTURES_FIXTURES_PATH_PARAMETRIZE="tests/fixtures/prod"
+pytest
+
+# Integration test fixtures
+export PYTEST_FIXTURES_FIXTURES_PATH_PARAMETRIZE="tests/fixtures/integration"
+pytest tests/integration/
+```
+
+**Example 2: Mixed configuration**
+
+```python
+# Most tests use environment-configured path
+@parametrize_from_fixture("common_data.csv")
+def test_common_functionality(value, expected):
+    assert process(value) == expected
+
+# Special test uses custom fixtures
+@parametrize_from_fixture("edge_cases.json", fixtures_dir="tests/special_fixtures")
+def test_edge_cases(input_data, expected_output):
+    assert handle_edge_case(input_data) == expected_output
+```
+
+**Example 3: CI/CD Configuration**
+
+```yaml
+# GitHub Actions example
+- name: Run unit tests
+  env:
+    PYTEST_FIXTURES_FIXTURES_PATH_PARAMETRIZE: tests/fixtures/unit
+  run: pytest tests/unit/
+
+- name: Run integration tests  
+  env:
+    PYTEST_FIXTURES_FIXTURES_PATH_PARAMETRIZE: tests/fixtures/integration
+  run: pytest tests/integration/
 ```

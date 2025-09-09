@@ -2,6 +2,7 @@
 
 import csv
 import json
+import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, TypeAlias, TypeVar
@@ -129,7 +130,13 @@ def parametrize_from_fixture(  # noqa: C901
 
 def _get_fixtures_path(fixtures_dir: str | Path | None = None) -> Path:
     """Get the fixtures directory path."""
-    # TODO: use fixtures_dir if provided
+    if fixtures_dir is not None:
+        return Path(fixtures_dir).resolve()
+
+    env_path = os.environ.get("PYTEST_FIXTURES_FIXTURES_PATH_PARAMETRIZE")
+    if env_path:
+        return Path(env_path).resolve()
+
     # Default path relative to current working directory
     return Path.cwd() / "tests" / "fixtures"
 
