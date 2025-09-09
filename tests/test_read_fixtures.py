@@ -3,7 +3,7 @@ import json
 import pytest
 import yaml
 
-from pytest_fixtures_fixtures import ReadJsonFixture
+from pytest_fixtures_fixtures import ReadJsonFixture, ReadJsonlFixture
 
 
 @pytest.fixture
@@ -104,7 +104,7 @@ def test_read_jsonl_fixture_encoding(read_jsonl_fixture, temp_dir):
     assert result == data
 
 
-def test_read_jsonl_fixture_invalid_json_line(read_jsonl_fixture, temp_dir):
+def test_read_jsonl_fixture_invalid_json_line(read_jsonl_fixture: ReadJsonlFixture, temp_dir):
     """Test read_jsonl_fixture with invalid JSON line raises error."""
     test_file = temp_dir / "invalid.jsonl"
     with open(test_file, "w") as f:
