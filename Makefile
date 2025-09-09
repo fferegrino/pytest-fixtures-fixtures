@@ -42,8 +42,8 @@ build:
 	$(UVX) build
 
 fmt:
-	$(RUFF) check --fix .
 	$(RUFF) format
+	$(RUFF) check --fix .
 
 lint:
 	$(RUFF) check .

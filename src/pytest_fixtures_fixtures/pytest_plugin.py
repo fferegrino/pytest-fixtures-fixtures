@@ -5,7 +5,7 @@ import json
 import os
 from collections.abc import Callable, Generator
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeAlias
 
 try:
     import yaml
@@ -13,6 +13,8 @@ except ImportError:
     yaml = None
 
 import pytest
+
+PathFn: TypeAlias = Callable[..., Path]
 
 
 def pytest_configure(config: pytest.Config):
@@ -30,7 +32,7 @@ def pytest_addoption(parser: pytest.Parser):
 
 
 @pytest.fixture
-def fixtures_path(pytestconfig, request):
+def fixtures_path(pytestconfig: pytest.Config, request: pytest.FixtureRequest) -> Path:
     """
     Get the path to the test fixtures directory.
 
@@ -52,7 +54,7 @@ def fixtures_path(pytestconfig, request):
 
     Example:
         Basic usage in a test function:
-        
+
         ```python
         def test_something(fixtures_path):
             assert fixtures_path.exists()
@@ -67,7 +69,7 @@ def fixtures_path(pytestconfig, request):
 
 
 @pytest.fixture
-def path_for_fixture(fixtures_path):
+def path_for_fixture(fixtures_path: Path) -> PathFn:
     """
     Get a Path object for a specific fixture file.
 
@@ -93,15 +95,15 @@ def path_for_fixture(fixtures_path):
 
     Example:
         Getting a path to a fixture file:
-        
+
         ```python
         def test_data_file(path_for_fixture):
             data_path = path_for_fixture("data", "sample.json")
             assert data_path.suffix == ".json"
         ```
-        
+
         Working with optional fixtures that may not exist:
-        
+
         ```python
         def test_optional_fixture(path_for_fixture):
             # Won't raise error if file doesn't exist
@@ -121,7 +123,7 @@ def path_for_fixture(fixtures_path):
 
 
 @pytest.fixture
-def read_fixture(path_for_fixture):
+def read_fixture(path_for_fixture: PathFn) -> Callable[..., Any]:
     r"""
     Read and optionally deserialize a fixture file.
 
@@ -146,15 +148,15 @@ def read_fixture(path_for_fixture):
 
     Example:
         Reading a text fixture file:
-        
+
         ```python
         def test_text_fixture(read_fixture):
             content = read_fixture("data", "sample.txt")
             assert "hello" in content
         ```
-        
+
         Reading a binary fixture file:
-        
+
         ```python
         def test_binary_fixture(read_fixture):
             data = read_fixture("data", "image.png", mode="rb", deserialize=lambda x: x)
@@ -168,7 +170,7 @@ def read_fixture(path_for_fixture):
         encoding: str = "utf-8",
         mode: str = "r",
         deserialize: Callable = lambda x: x,
-    ) -> str:
+    ) -> Any:
         path = path_for_fixture(*fixture_name)
         # Don't pass encoding for binary modes
         if "b" in mode:
@@ -182,7 +184,7 @@ def read_fixture(path_for_fixture):
 
 
 @pytest.fixture
-def read_json_fixture(read_fixture):
+def read_json_fixture(read_fixture: Callable[..., Any]) -> Callable[..., dict]:
     """
     Read and parse a JSON fixture file.
 
@@ -209,15 +211,15 @@ def read_json_fixture(read_fixture):
 
     Example:
         Reading a configuration JSON file:
-        
+
         ```python
         def test_config_data(read_json_fixture):
             config = read_json_fixture("config", "settings.json")
             assert config["database"]["host"] == "localhost"
         ```
-        
+
         Reading user data from a JSON file:
-        
+
         ```python
         def test_user_data(read_json_fixture):
             users = read_json_fixture("data", "users.json")
@@ -236,7 +238,7 @@ def read_json_fixture(read_fixture):
 
 
 @pytest.fixture
-def read_jsonl_fixture(path_for_fixture):
+def read_jsonl_fixture(path_for_fixture: PathFn) -> Callable[..., Generator[dict, None, None]]:
     """
     Read and parse a JSONL (JSON Lines) fixture file.
 
@@ -264,16 +266,16 @@ def read_jsonl_fixture(path_for_fixture):
 
     Example:
         Reading log entries from a JSONL file:
-        
+
         ```python
         def test_log_entries(read_jsonl_fixture):
             logs = read_jsonl_fixture("logs", "access.jsonl")
             first_log = next(logs)
             assert "timestamp" in first_log
         ```
-        
+
         Processing user records from a JSONL file:
-        
+
         ```python
         def test_user_records(read_jsonl_fixture):
             users = read_jsonl_fixture("data", "users.jsonl")
@@ -297,7 +299,7 @@ def read_jsonl_fixture(path_for_fixture):
 
 
 @pytest.fixture
-def read_csv_fixture(path_for_fixture):
+def read_csv_fixture(path_for_fixture: PathFn) -> Callable[..., Generator[list[str], None, None]]:
     """
     Read and parse a CSV fixture file.
 
@@ -325,16 +327,16 @@ def read_csv_fixture(path_for_fixture):
 
     Example:
         Reading CSV data with headers:
-        
+
         ```python
         def test_user_data(read_csv_fixture):
             rows = read_csv_fixture("data", "users.csv")
             header = next(rows)  # First row is typically headers
             assert header == ["name", "age", "email"]
         ```
-        
+
         Processing sales data from a CSV file:
-        
+
         ```python
         def test_sales_data(read_csv_fixture):
             sales = read_csv_fixture("reports", "sales.csv")
@@ -356,7 +358,9 @@ def read_csv_fixture(path_for_fixture):
 
 
 @pytest.fixture
-def read_csv_dict_fixture(path_for_fixture):
+def read_csv_dict_fixture(
+    path_for_fixture: PathFn,
+) -> Callable[..., Generator[dict[str, str], None, None]]:
     """
     Read and parse a CSV fixture file as dictionaries.
 
@@ -385,7 +389,7 @@ def read_csv_dict_fixture(path_for_fixture):
 
     Example:
         Reading user data as dictionaries:
-        
+
         ```python
         def test_user_data(read_csv_dict_fixture):
             users = read_csv_dict_fixture("data", "users.csv")
@@ -393,9 +397,9 @@ def read_csv_dict_fixture(path_for_fixture):
             assert first_user["name"] == "Alice"
             assert first_user["age"] == "30"
         ```
-        
+
         Processing sales records with dict access:
-        
+
         ```python
         def test_sales_records(read_csv_dict_fixture):
             sales = read_csv_dict_fixture("reports", "sales.csv")
@@ -418,7 +422,7 @@ def read_csv_dict_fixture(path_for_fixture):
 
 
 @pytest.fixture
-def read_yaml_fixture(path_for_fixture):
+def read_yaml_fixture(path_for_fixture: PathFn) -> Callable[..., Any]:
     """
     Read and parse a YAML fixture file.
 
@@ -448,16 +452,16 @@ def read_yaml_fixture(path_for_fixture):
 
     Example:
         Reading configuration from a YAML file:
-        
+
         ```python
         def test_config_data(read_yaml_fixture):
             config = read_yaml_fixture("config", "settings.yaml")
             assert config["database"]["host"] == "localhost"
             assert config["debug"] is False
         ```
-        
+
         Processing user data from a YAML file:
-        
+
         ```python
         def test_user_list(read_yaml_fixture):
             users = read_yaml_fixture("data", "users.yaml")
